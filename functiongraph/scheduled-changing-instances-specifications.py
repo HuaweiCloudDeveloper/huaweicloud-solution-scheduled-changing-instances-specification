@@ -4,11 +4,9 @@ from huaweicloudsdkcore.auth.credentials import BasicCredentials
 from huaweicloudsdkecs.v2.region.ecs_region import EcsRegion
 from huaweicloudsdkcore.exceptions import exceptions
 from huaweicloudsdkecs.v2 import *
-
 import traceback
 
 
-# FunctionGraph entry point
 def handler(event, context):
     log = context.getLogger()
     flag, result = check_configuration(context)
@@ -22,10 +20,9 @@ def handler(event, context):
                   f"exception：{traceback.format_exc()}")
 
 
-# Verify that environment variables have been configured.
 def check_configuration(context):
-    ak = context.getAccessKey().strip()
-    sk = context.getSecretKey().strip()
+    ak = context.getSecurityAccessKey()
+    sk = context.getSecuritySecretKey()
     if not ak or not sk:
         ak = context.getUserData('ak', '').strip()
         sk = context.getUserData('sk', '').strip()
@@ -38,14 +35,10 @@ class Processor:
     def __init__(self, context=None):
         self.log = context.getLogger()
         self.ecs_client = get_ecs_client(context)
-        # self.region = context.getUserData('region').strip()
         self.id_list = context.getUserData('ecs_ids').strip().split()
-        # self.password_list = context.getUserData('password_list').split()
-        # self.paid_style = context.getUserData('charging_mode').strip()
         self.ecs_flavor = context.getUserData('ecs_flavor').strip()
 
     def change_specification(self, server_id):
-        # Pay-per-use
         request = ResizePostPaidServerRequest()
         request.server_id = server_id
         resizebody = ResizePostPaidServerOption(flavor_ref=self.ecs_flavor)
@@ -90,11 +83,13 @@ class Processor:
 
 
 def get_ecs_client(context):
-    ak = context.getAccessKey()
-    sk = context.getSecretKey()
-    credentials = BasicCredentials(ak, sk)
+    ak = context.getSecurityAccessKey()
+    sk = context.getSecuritySecretKey()
+    st = context.getSecurityToken()
+    project_id = context.getProjectID()
+    credentials = BasicCredentials(ak, sk, project_id).with_security_token(st)
     ecs_client = EcsClient.new_builder() \
         .with_credentials(credentials) \
-        .with_region(EcsRegion.value_of("cn-north-4")) \
+        .with_region(EcsRegion.value_of("ap-southeast-3")) \
         .build()
     return ecs_client
